@@ -51,6 +51,22 @@ export default function DashboardScreen() {
         <View style={styles.eclipseGlow} />
         <View style={styles.eclipseDark} />
 
+        <View style={styles.topBar}>
+          <Text style={styles.topBarText}>Painel Principal</Text>
+
+          <TouchableOpacity
+            style={styles.profileButton}
+            onPress={() => router.push("/perfil")}
+            activeOpacity={0.85}
+          >
+            <MaterialCommunityIcons
+              name="account-circle-outline"
+              size={30}
+              color="#FFFFFF"
+            />
+          </TouchableOpacity>
+        </View>
+
         <View style={styles.header}>
           <Text style={styles.overline}>ORBITAL FARM COMMAND</Text>
           <Text style={styles.title}>Eclipse Protocol</Text>
@@ -62,7 +78,11 @@ export default function DashboardScreen() {
 
         <View style={styles.statusPanel}>
           <View style={styles.statusIcon}>
-            <MaterialCommunityIcons name="satellite-variant" size={30} color="#58C7FF" />
+            <MaterialCommunityIcons
+              name="satellite-variant"
+              size={30}
+              color="#58C7FF"
+            />
           </View>
 
           <View style={styles.statusTextBox}>
@@ -132,7 +152,7 @@ const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
     paddingHorizontal: 22,
-    paddingTop: 54,
+    paddingTop: 48,
     paddingBottom: 30,
   },
 
@@ -156,6 +176,32 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,12,22,0.9)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.12)",
+  },
+
+  topBar: {
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 24,
+  },
+
+  topBarText: {
+    color: "rgba(255,255,255,0.76)",
+    fontSize: 13,
+    fontWeight: "800",
+    letterSpacing: 1,
+  },
+
+  profileButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.14)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.24)",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   header: {
