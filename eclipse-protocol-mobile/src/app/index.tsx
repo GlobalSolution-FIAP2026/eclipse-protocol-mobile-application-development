@@ -26,7 +26,7 @@ export default function RegisterScreen() {
     }
 
     Alert.alert("Cadastro realizado", "Conta criada com sucesso!");
-    router.push("/dashboard");
+    router.push("/login");
   }
 
   return (
