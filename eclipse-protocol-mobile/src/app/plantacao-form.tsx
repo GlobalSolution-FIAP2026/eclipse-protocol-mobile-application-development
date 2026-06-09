@@ -2,7 +2,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { atualizarPropriedade, criarPropriedade } from "../services/api";
+import { atualizarPlantacao, criarPlantacao } from "../services/api";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -17,37 +17,31 @@ import {
   View,
 } from "react-native";
 
-export default function PropriedadeFormScreen() {
+export default function PlantacaoFormScreen() {
   const params = useLocalSearchParams();
 
-  const propriedadeId = params.id ? Number(params.id) : null;
+  const plantacaoId = params.id ? Number(params.id) : null;
 
   const [nome, setNome] = useState("");
-  const [proprietario, setProprietario] = useState("");
+  const [cultura, setCultura] = useState("");
   const [area, setArea] = useState("");
-  const [tipoSolo, setTipoSolo] = useState("");
+  const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const idLocalizacao = params.idLocalizacao ? Number(params.idLocalizacao) : 1;
-  const idUsuario = params.idUsuario ? Number(params.idUsuario) : 1;
+  const idPropriedade = params.idPropriedade
+    ? Number(params.idPropriedade)
+    : 1;
 
   useEffect(() => {
     setNome(params.nome ? String(params.nome) : "");
-    setProprietario(
-      params.proprietario ? String(params.proprietario) : "Usuário Eclipse"
-    );
-    setArea(params.areaTotal ? String(params.areaTotal) : "");
-    setTipoSolo(params.tipoSolo ? String(params.tipoSolo) : "");
-  }, [
-    params.nome,
-    params.proprietario,
-    params.areaTotal,
-    params.tipoSolo,
-  ]);
+    setCultura(params.cultura ? String(params.cultura) : "");
+    setArea(params.areaHectares ? String(params.areaHectares) : "");
+    setStatus(params.status ? String(params.status) : "");
+  }, [params.nome, params.cultura, params.areaHectares, params.status]);
 
   async function handleSalvar() {
-    if (!nome.trim() || !proprietario.trim() || !area.trim()) {
-      Alert.alert("Atenção", "Preencha nome, proprietário e área total.");
+    if (!nome.trim() || !cultura.trim() || !area.trim() || !status.trim()) {
+      Alert.alert("Atenção", "Preencha todos os campos obrigatórios.");
       return;
     }
 
@@ -65,31 +59,30 @@ export default function PropriedadeFormScreen() {
 
       if (!token) {
         Alert.alert("Erro", "Token não encontrado. Faça login novamente.");
-        router.push("/login");
+        router.replace("/login");
         return;
       }
 
       const payload = {
         nome: nome.trim(),
-        proprietario: proprietario.trim(),
-        areaTotal: areaConvertida,
-        tipoSolo: tipoSolo.trim() || "Não informado",
-        idLocalizacao,
-        idUsuario,
+        cultura: cultura.trim(),
+        areaHectares: areaConvertida,
+        status: status.trim(),
+        idPropriedade,
       };
 
-      if (propriedadeId) {
-        await atualizarPropriedade(token, propriedadeId, payload);
-        Alert.alert("Sucesso", "Propriedade atualizada com sucesso!");
+      if (plantacaoId) {
+        await atualizarPlantacao(token, plantacaoId, payload);
+        Alert.alert("Sucesso", "Plantação atualizada com sucesso!");
       } else {
-        await criarPropriedade(token, payload);
-        Alert.alert("Sucesso", "Propriedade cadastrada com sucesso!");
+        await criarPlantacao(token, payload);
+        Alert.alert("Sucesso", "Plantação cadastrada com sucesso!");
       }
 
-      router.replace("/propriedades");
+      router.replace("/plantacoes");
     } catch (error) {
-      console.log("ERRO AO SALVAR PROPRIEDADE:", error);
-      Alert.alert("Erro", "Não foi possível salvar a propriedade.");
+      console.log("ERRO AO SALVAR PLANTAÇÃO:", error);
+      Alert.alert("Erro", "Não foi possível salvar a plantação.");
     } finally {
       setLoading(false);
     }
@@ -107,62 +100,62 @@ export default function PropriedadeFormScreen() {
 
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => router.push("/propriedades")}
+            onPress={() => router.replace("/plantacoes")}
           >
             <MaterialCommunityIcons name="arrow-left" size={24} color="#FFFFFF" />
           </TouchableOpacity>
 
-          <Text style={styles.overline}>CADASTRO TERRITORIAL</Text>
+          <Text style={styles.overline}>CADASTRO AGRÍCOLA</Text>
 
           <Text style={styles.title}>
-            {propriedadeId ? "Editar Propriedade" : "Nova Propriedade"}
+            {plantacaoId ? "Editar Plantação" : "Nova Plantação"}
           </Text>
 
           <Text style={styles.subtitle}>
-            {propriedadeId
-              ? "Atualize os dados da propriedade rural."
-              : "Registre uma área rural para monitoramento inteligente."}
+            {plantacaoId
+              ? "Atualize os dados da plantação monitorada."
+              : "Registre uma cultura agrícola vinculada a uma propriedade."}
           </Text>
 
           <View style={styles.card}>
-            <Text style={styles.label}>Nome da propriedade *</Text>
+            <Text style={styles.label}>Nome da plantação *</Text>
             <TextInput
               style={styles.input}
-              placeholder="Ex: Fazenda Aurora"
+              placeholder="Ex: Soja Safra 2026"
               placeholderTextColor="rgba(255,255,255,0.55)"
               value={nome}
-              onChangeText={(text) => setNome(text)}
+              onChangeText={setNome}
               editable={!loading}
             />
 
-            <Text style={styles.label}>Proprietário *</Text>
+            <Text style={styles.label}>Cultura *</Text>
             <TextInput
               style={styles.input}
-              placeholder="Ex: João Silva"
+              placeholder="Ex: Soja"
               placeholderTextColor="rgba(255,255,255,0.55)"
-              value={proprietario}
-              onChangeText={(text) => setProprietario(text)}
+              value={cultura}
+              onChangeText={setCultura}
               editable={!loading}
             />
 
-            <Text style={styles.label}>Área total em hectares *</Text>
+            <Text style={styles.label}>Área em hectares *</Text>
             <TextInput
               style={styles.input}
-              placeholder="Ex: 120"
+              placeholder="Ex: 85"
               placeholderTextColor="rgba(255,255,255,0.55)"
               value={area}
-              onChangeText={(text) => setArea(text)}
+              onChangeText={setArea}
               keyboardType="numeric"
               editable={!loading}
             />
 
-            <Text style={styles.label}>Tipo de solo</Text>
+            <Text style={styles.label}>Status *</Text>
             <TextInput
               style={styles.input}
-              placeholder="Ex: Argiloso"
+              placeholder="Ex: Em desenvolvimento"
               placeholderTextColor="rgba(255,255,255,0.55)"
-              value={tipoSolo}
-              onChangeText={(text) => setTipoSolo(text)}
+              value={status}
+              onChangeText={setStatus}
               editable={!loading}
             />
 
@@ -184,12 +177,12 @@ export default function PropriedadeFormScreen() {
                 ) : (
                   <>
                     <MaterialCommunityIcons
-                      name={propriedadeId ? "pencil-outline" : "content-save-outline"}
+                      name={plantacaoId ? "pencil-outline" : "content-save-outline"}
                       size={21}
                       color="#FFFFFF"
                     />
                     <Text style={styles.saveText}>
-                      {propriedadeId ? "Atualizar Propriedade" : "Salvar Propriedade"}
+                      {plantacaoId ? "Atualizar Plantação" : "Salvar Plantação"}
                     </Text>
                   </>
                 )}
