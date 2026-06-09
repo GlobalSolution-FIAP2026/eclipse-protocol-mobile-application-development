@@ -1,5 +1,6 @@
 import { useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Image,
   KeyboardAvoidingView,
@@ -14,20 +15,31 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { cadastrarUsuario } from "../services/api";
 import { router } from "expo-router";
+import { register } from "../services/api";
 
 export default function RegisterScreen() {
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  function handleCadastro() {
+  async function handleCadastro() {
     if (!nome || !email || !senha) {
       Alert.alert("Atenção", "Preencha todos os campos.");
       return;
     }
 
-    Alert.alert("Cadastro realizado", "Conta criada com sucesso!");
-    router.push("/login");
+    setLoading(true);
+    try {
+      await register(nome, email, senha);
+      Alert.alert("Cadastro realizado", "Conta criada com sucesso!", [
+        { text: "OK", onPress: () => router.push("/login") },
+      ]);
+    } catch (err: any) {
+      Alert.alert("Erro", err.message ?? "Não foi possível criar a conta.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -99,12 +111,16 @@ export default function RegisterScreen() {
               secureTextEntry
             />
 
-            <TouchableOpacity activeOpacity={0.85} onPress={handleCadastro}>
+            <TouchableOpacity activeOpacity={0.85} onPress={handleCadastro} disabled={loading}>
               <LinearGradient
                 colors={["#19D991", "#008B68", "#005C46"]}
                 style={styles.button}
               >
-                <Text style={styles.buttonText}>Criar conta</Text>
+                {loading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.buttonText}>Criar conta</Text>
+                )}
               </LinearGradient>
             </TouchableOpacity>
 

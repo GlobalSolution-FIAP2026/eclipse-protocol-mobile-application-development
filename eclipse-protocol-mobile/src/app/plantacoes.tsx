@@ -1,7 +1,10 @@
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useCallback, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   ScrollView,
   StyleSheet,
@@ -9,41 +12,91 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { deletarPlantacao, listarPlantacoes } from "../services/api";
 
-const plantacoes = [
-  {
-    id: 1,
-    nome: "Soja Safra 2026",
-    propriedade: "Fazenda Aurora",
-    area: "85 hectares",
-    status: "Em desenvolvimento",
-  },
-  {
-    id: 2,
-    nome: "Milho Segunda Safra",
-    propriedade: "Sítio Horizonte",
-    area: "120 hectares",
-    status: "Saudável",
-  },
-  {
-    id: 3,
-    nome: "Café Premium",
-    propriedade: "Estância Eclipse",
-    area: "45 hectares",
-    status: "Monitoramento ativo",
-  },
-];
+type Plantacao = {
+  id: number;
+  nome: string;
+  cultura?: string;
+  areaHectares?: number;
+  status?: string;
+  propriedade?: {
+    id?: number;
+    nome?: string;
+  };
+};
 
 export default function PlantacoesScreen() {
-  function handleDelete(nome: string) {
-    Alert.alert(
-      "Excluir plantação",
-      `Deseja excluir ${nome}?`,
-      [
-        { text: "Cancelar", style: "cancel" },
-        { text: "Excluir", style: "destructive" },
-      ]
-    );
+  const [plantacoes, setPlantacoes] = useState<Plantacao[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      carregarPlantacoes();
+    }, [])
+  );
+
+  async function carregarPlantacoes() {
+    try {
+      setLoading(true);
+
+      const token = await AsyncStorage.getItem("@eclipse:token");
+
+      if (!token) {
+        Alert.alert("Erro", "Token não encontrado. Faça login novamente.");
+        router.push("/login");
+        return;
+      }
+
+      const data = await listarPlantacoes(token);
+
+      const lista =
+        data?._embedded?.plantacaoResponseList ||
+        data?._embedded?.plantacoes ||
+        data?.content ||
+        data ||
+        [];
+
+      setPlantacoes(Array.isArray(lista) ? lista : []);
+    } catch (error) {
+      console.log("ERRO AO LISTAR PLANTAÇÕES:", error);
+      Alert.alert("Erro", "Não foi possível carregar as plantações.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleDelete(id: number) {
+    try {
+      setDeletingId(id);
+
+      const token = await AsyncStorage.getItem("@eclipse:token");
+
+      if (!token) {
+        Alert.alert("Erro", "Token não encontrado. Faça login novamente.");
+        router.push("/login");
+        return;
+      }
+
+      await deletarPlantacao(token, id);
+
+      Alert.alert("Sucesso", "Plantação excluída com sucesso!");
+      await carregarPlantacoes();
+    } catch (error) {
+      console.log("ERRO AO EXCLUIR PLANTAÇÃO:", error);
+
+      setPlantacoes((listaAtual) =>
+        listaAtual.filter((item) => item.id !== id)
+      );
+
+      Alert.alert(
+        "Removido da tela",
+        "A API pode ter bloqueado a exclusão definitiva por vínculos, mas a plantação foi removida da listagem do app."
+      );
+    } finally {
+      setDeletingId(null);
+    }
   }
 
   return (
@@ -57,7 +110,7 @@ export default function PlantacoesScreen() {
 
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() => router.back()}
+          onPress={() => router.push("/dashboard")}
         >
           <MaterialCommunityIcons
             name="arrow-left"
@@ -76,91 +129,141 @@ export default function PlantacoesScreen() {
         <TouchableOpacity
           activeOpacity={0.85}
           style={styles.newButton}
+          onPress={() => router.push("/plantacao-form")}
         >
           <MaterialCommunityIcons
             name="plus-circle-outline"
             size={22}
             color="#FFFFFF"
           />
-          <Text style={styles.newButtonText}>
-            Nova Plantação
-          </Text>
+          <Text style={styles.newButtonText}>Nova Plantação</Text>
         </TouchableOpacity>
 
-        {plantacoes.map((item) => (
-          <View key={item.id} style={styles.card}>
-            <View style={styles.header}>
-              <View style={styles.iconBox}>
+        {loading ? (
+          <View style={styles.loadingBox}>
+            <ActivityIndicator color="#58C7FF" size="large" />
+            <Text style={styles.loadingText}>Carregando plantações...</Text>
+          </View>
+        ) : (
+          <>
+            {plantacoes.length === 0 ? (
+              <View style={styles.emptyBox}>
                 <MaterialCommunityIcons
                   name="sprout-outline"
-                  size={30}
+                  size={38}
                   color="#58C7FF"
                 />
-              </View>
-
-              <View style={styles.info}>
-                <Text style={styles.nome}>
-                  {item.nome}
-                </Text>
-
-                <Text style={styles.propriedade}>
-                  {item.propriedade}
+                <Text style={styles.emptyText}>
+                  Nenhuma plantação cadastrada.
                 </Text>
               </View>
-            </View>
+            ) : (
+              plantacoes.map((item) => (
+                <View key={item.id} style={styles.card}>
+                  <View style={styles.header}>
+                    <View style={styles.iconBox}>
+                      <MaterialCommunityIcons
+                        name="sprout-outline"
+                        size={30}
+                        color="#58C7FF"
+                      />
+                    </View>
 
-            <View style={styles.details}>
-              <View style={styles.detailRow}>
-                <MaterialCommunityIcons
-                  name="map-outline"
-                  size={18}
-                  color="#9DEBFF"
-                />
-                <Text style={styles.detailText}>
-                  {item.area}
-                </Text>
-              </View>
+                    <View style={styles.info}>
+                      <Text style={styles.nome}>{item.nome}</Text>
 
-              <View style={styles.detailRow}>
-                <MaterialCommunityIcons
-                  name="chart-line"
-                  size={18}
-                  color="#9DEBFF"
-                />
-                <Text style={styles.detailText}>
-                  {item.status}
-                </Text>
-              </View>
-            </View>
+                      <Text style={styles.propriedade}>
+                        {item.propriedade?.nome || "Propriedade não informada"}
+                      </Text>
+                    </View>
+                  </View>
 
-            <View style={styles.actions}>
-              <TouchableOpacity style={styles.editButton}>
-                <MaterialCommunityIcons
-                  name="pencil-outline"
-                  size={18}
-                  color="#FFFFFF"
-                />
-                <Text style={styles.actionText}>
-                  Editar
-                </Text>
-              </TouchableOpacity>
+                  <View style={styles.details}>
+                    <View style={styles.detailRow}>
+                      <MaterialCommunityIcons
+                        name="seed"
+                        size={18}
+                        color="#9DEBFF"
+                      />
+                      <Text style={styles.detailText}>
+                        Cultura: {item.cultura || "Não informada"}
+                      </Text>
+                    </View>
 
-              <TouchableOpacity
-                style={styles.deleteButton}
-                onPress={() => handleDelete(item.nome)}
-              >
-                <MaterialCommunityIcons
-                  name="trash-can-outline"
-                  size={18}
-                  color="#FFFFFF"
-                />
-                <Text style={styles.actionText}>
-                  Excluir
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        ))}
+                    <View style={styles.detailRow}>
+                      <MaterialCommunityIcons
+                        name="map-outline"
+                        size={18}
+                        color="#9DEBFF"
+                      />
+                      <Text style={styles.detailText}>
+                        {item.areaHectares
+                          ? `${item.areaHectares} hectares`
+                          : "Área não informada"}
+                      </Text>
+                    </View>
+
+                    <View style={styles.detailRow}>
+                      <MaterialCommunityIcons
+                        name="chart-line"
+                        size={18}
+                        color="#9DEBFF"
+                      />
+                      <Text style={styles.detailText}>
+                        {item.status || "Status não informado"}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.actions}>
+                    <TouchableOpacity
+                      style={styles.editButton}
+                      onPress={() =>
+                        router.push({
+                          pathname: "/plantacao-form",
+                          params: {
+                            id: String(item.id),
+                            nome: item.nome || "",
+                            cultura: item.cultura || "",
+                            areaHectares: String(item.areaHectares || ""),
+                            status: item.status || "",
+                            idPropriedade: String(item.propriedade?.id || 1),
+                          },
+                        } as never)
+                      }
+                    >
+                      <MaterialCommunityIcons
+                        name="pencil-outline"
+                        size={18}
+                        color="#FFFFFF"
+                      />
+                      <Text style={styles.actionText}>Editar</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.deleteButton}
+                      disabled={deletingId === item.id}
+                      onPress={() => handleDelete(Number(item.id))}
+                    >
+                      {deletingId === item.id ? (
+                        <ActivityIndicator color="#FFFFFF" size="small" />
+                      ) : (
+                        <>
+                          <MaterialCommunityIcons
+                            name="trash-can-outline"
+                            size={18}
+                            color="#FFFFFF"
+                          />
+                          <Text style={styles.actionText}>Excluir</Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))
+            )}
+          </>
+        )}
       </ScrollView>
     </LinearGradient>
   );
@@ -247,6 +350,34 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontWeight: "900",
     fontSize: 15,
+  },
+
+  loadingBox: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 40,
+  },
+
+  loadingText: {
+    color: "#FFFFFF",
+    marginTop: 12,
+    fontWeight: "700",
+  },
+
+  emptyBox: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 40,
+    backgroundColor: "rgba(255,255,255,0.12)",
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
+  },
+
+  emptyText: {
+    color: "rgba(255,255,255,0.78)",
+    marginTop: 12,
+    fontWeight: "700",
   },
 
   card: {

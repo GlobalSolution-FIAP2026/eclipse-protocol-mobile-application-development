@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { login } from "../services/api";
 import {
   ActivityIndicator,
   Alert,
@@ -12,35 +11,59 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
+import { login } from "../services/api";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function handleLogin() {
-    if (!email || !senha) {
-      Alert.alert("Atenção", "Preencha e-mail e senha.");
+async function handleLogin() {
+  if (!email || !senha) {
+    Alert.alert("Atenção", "Preencha e-mail e senha.");
+    return;
+  }
+
+  try {
+    setLoading(true);
+
+    const data = await login(email, senha);
+
+    console.log("RETORNO LOGIN:");
+    console.log(JSON.stringify(data, null, 2));
+    const token = (data as any).token
+  || (data as any).accessToken
+  || (data as any).jwt
+  || (data as any).access_token;
+
+    console.log("TOKEN EXTRAÍDO:", token);
+
+    if (!token) {
+      Alert.alert(
+        "Erro",
+        "A API não retornou um token válido. Verifique o console."
+      );
       return;
     }
 
-    try {
-      setLoading(true);
+    await AsyncStorage.setItem("@eclipse:token", token);
 
-      const data = await login(email, senha);
+    const tokenSalvo = await AsyncStorage.getItem("@eclipse:token");
 
-      console.log("RETORNO DO LOGIN:", data);
+    console.log("TOKEN SALVO:", tokenSalvo);
 
-      Alert.alert("Sucesso", "Login realizado com sucesso!");
-      router.push("/dashboard");
-    } catch (error) {
-      Alert.alert("Erro", "E-mail ou senha inválidos ou API indisponível.");
-    } finally {
-      setLoading(false);
-    }
+    Alert.alert("Sucesso", "Login realizado com sucesso!");
+    router.push("/dashboard");
+  } catch (error) {
+    console.log("ERRO NO LOGIN:", error);
+    Alert.alert("Erro", "Não foi possível realizar o login.");
+  } finally {
+    setLoading(false);
   }
+}
 
   return (
     <LinearGradient
