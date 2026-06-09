@@ -4,6 +4,16 @@ async function handleResponse(response: Response, errorMessage: string) {
   if (!response.ok) {
     const errorText = await response.text();
     console.log("Erro da API:", errorText);
+
+    if (errorText.includes("unique constraint") || errorText.includes("ORA-00001")) {
+      throw new Error("Este e-mail já está cadastrado.");
+    }
+
+    try {
+      const json = JSON.parse(errorText);
+      if (json.message) throw new Error(json.message);
+    } catch {}
+
     throw new Error(errorMessage);
   }
 
@@ -39,6 +49,21 @@ export async function register(
   });
 
   return handleResponse(response, "Erro ao criar conta");
+}
+
+export async function loginWithGithub(
+  code: string,
+  redirectUri: string
+): Promise<{ token: string; tipo: string }> {
+  const response = await fetch(`${API_BASE_URL}/auth/github`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ code, redirectUri }),
+  });
+
+  return handleResponse(response, "Erro ao autenticar com GitHub");
 }
 
 export async function getAlertas(token: string) {

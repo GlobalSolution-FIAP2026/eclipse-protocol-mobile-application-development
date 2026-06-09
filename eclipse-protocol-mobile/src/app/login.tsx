@@ -14,12 +14,33 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import { login } from "../services/api";
+import * as WebBrowser from "expo-web-browser";
+import { makeRedirectUri, useAuthRequest } from "expo-auth-session";
+import { login, loginWithGithub } from "../services/api";
+
+WebBrowser.maybeCompleteAuthSession();
+
+const GITHUB_CLIENT_ID = "Ov23liKnTer3C7Og2Fq4";
+
+const discovery = {
+  authorizationEndpoint: "https://github.com/login/oauth/authorize",
+};
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const redirectUri = makeRedirectUri({ scheme: "eclipseprotocolmobile" });
+
+  const [, , promptAsync] = useAuthRequest(
+    {
+      clientId: GITHUB_CLIENT_ID,
+      scopes: ["user:email"],
+      redirectUri,
+    },
+    discovery
+  );
 
   async function handleLogin() {
     if (!email || !senha) {
@@ -38,6 +59,21 @@ export default function LoginScreen() {
       setLoading(false);
     }
   }
+
+  async function handleGithubLogin() {
+  const result = await WebBrowser.openAuthSessionAsync(
+    "https://eclipse-protocol-java.onrender.com/oauth2/authorization/github",
+    "eclipseprotocolmobile://"
+  );
+
+  if (result.type === "success" && result.url) {
+    const token = result.url.split("token=")[1];
+    if (token) {
+      await AsyncStorage.setItem("token", token);
+      router.push("/dashboard");
+    }
+  }
+}
 
   return (
     <LinearGradient
@@ -107,6 +143,20 @@ export default function LoginScreen() {
                   <Text style={styles.buttonText}>Entrar</Text>
                 )}
               </LinearGradient>
+            </TouchableOpacity>
+
+            <View style={styles.dividerRow}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>ou</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            <TouchableOpacity
+              style={styles.githubButton}
+              onPress={handleGithubLogin}
+              disabled={loading}
+            >
+              <Text style={styles.githubButtonText}>🐙  Entrar com GitHub</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -248,5 +298,38 @@ const styles = StyleSheet.create({
   registerText: {
     color: "#DDF7FF",
     fontWeight: "700",
+  },
+
+  dividerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: 16,
+  },
+
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "rgba(255,255,255,0.2)",
+  },
+
+  dividerText: {
+    color: "rgba(255,255,255,0.5)",
+    marginHorizontal: 10,
+    fontSize: 13,
+  },
+
+  githubButton: {
+    backgroundColor: "rgba(255,255,255,0.12)",
+    borderRadius: 18,
+    paddingVertical: 14,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.25)",
+  },
+
+  githubButtonText: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+    fontSize: 15,
   },
 });
