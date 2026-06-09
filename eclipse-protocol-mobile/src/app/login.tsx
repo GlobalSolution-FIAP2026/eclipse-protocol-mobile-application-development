@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
+  BackHandler,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -11,19 +13,58 @@ import {
   View,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
+import { login, saveAuthData } from "../services/api";
+import axios from "axios";
+
+async function getUsuariosComToken(token: string, email: string) {
+  try {
+    const response = await axios.get(
+      "https://eclipse-protocol-java.onrender.com/usuarios",
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    return response.data._embedded?.usuarioResponseList ?? [];
+  } catch {
+    return [];
+  }
+}
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  function handleLogin() {
+  // Block hardware back button so users can't press back to dashboard after logout
+  useFocusEffect(
+    useCallback(() => {
+      const sub = BackHandler.addEventListener("hardwareBackPress", () => true);
+      return () => sub.remove();
+    }, [])
+  );
+
+  async function handleLogin() {
     if (!email || !senha) {
       Alert.alert("Atenção", "Preencha e-mail e senha.");
       return;
     }
 
-    router.push("/dashboard");
+    try {
+      setLoading(true);
+      const { token } = await login(email.trim().toLowerCase(), senha);
+      const usuarios = await getUsuariosComToken(token, email.trim().toLowerCase());
+      const usuario = usuarios.find(
+        (u: { email: string }) => u.email.toLowerCase() === email.trim().toLowerCase()
+      );
+      const userId = usuario?.id ?? 0;
+      const nome = usuario?.nome ?? "Usuário";
+
+      await saveAuthData(token, userId, email.trim().toLowerCase(), nome);
+      router.replace("/dashboard");
+    } catch {
+      Alert.alert("Erro", "E-mail ou senha inválidos. Verifique suas credenciais.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -83,12 +124,16 @@ export default function LoginScreen() {
               secureTextEntry
             />
 
-            <TouchableOpacity onPress={handleLogin}>
+            <TouchableOpacity onPress={handleLogin} disabled={loading}>
               <LinearGradient
                 colors={["#19D991", "#008B68", "#005C46"]}
                 style={styles.button}
               >
-                <Text style={styles.buttonText}>Entrar</Text>
+                {loading ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.buttonText}>Entrar</Text>
+                )}
               </LinearGradient>
             </TouchableOpacity>
 

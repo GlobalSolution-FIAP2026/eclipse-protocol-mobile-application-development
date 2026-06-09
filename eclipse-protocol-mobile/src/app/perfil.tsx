@@ -1,13 +1,45 @@
+import { useEffect, useState } from "react";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  getStoredUserEmail,
+  getStoredUserName,
+  getStoredUserId,
+  clearAuthData,
+} from "../services/api";
 
 export default function PerfilScreen() {
+  const [nome, setNome] = useState("Carregando...");
+  const [email, setEmail] = useState("");
+  const [userId, setUserId] = useState<number | null>(null);
+
+  useEffect(() => {
+    async function loadUser() {
+      const [n, e, id] = await Promise.all([
+        getStoredUserName(),
+        getStoredUserEmail(),
+        getStoredUserId(),
+      ]);
+      setNome(n ?? "Usuário");
+      setEmail(e ?? "");
+      setUserId(id);
+    }
+    loadUser();
+  }, []);
+
   function handleLogout() {
     Alert.alert("Sair", "Deseja encerrar a sessão?", [
       { text: "Cancelar", style: "cancel" },
-      { text: "Sair", style: "destructive", onPress: () => router.push("/login") },
+      {
+        text: "Sair",
+        style: "destructive",
+        onPress: async () => {
+          await clearAuthData();
+          router.replace("/login");
+        },
+      },
     ]);
   }
 
@@ -26,9 +58,12 @@ export default function PerfilScreen() {
             <MaterialCommunityIcons name="account-outline" size={46} color="#58C7FF" />
           </View>
 
-          <Text style={styles.name}>Usuário Eclipse</Text>
-          <Text style={styles.role}>Administrador da Plataforma</Text>
-          <Text style={styles.email}>usuario@eclipseprotocol.com</Text>
+          <Text style={styles.name}>{nome}</Text>
+          <Text style={styles.role}>Usuário da Plataforma</Text>
+          <Text style={styles.email}>{email}</Text>
+          {userId !== null && (
+            <Text style={styles.userId}>ID: {userId}</Text>
+          )}
         </View>
 
         <View style={styles.card}>
@@ -75,6 +110,7 @@ const styles = StyleSheet.create({
     height: 300,
     borderRadius: 150,
     backgroundColor: "rgba(0,117,216,0.26)",
+    pointerEvents: "none",
   },
   eclipseDark: {
     position: "absolute",
@@ -84,6 +120,7 @@ const styles = StyleSheet.create({
     height: 235,
     borderRadius: 117.5,
     backgroundColor: "rgba(0,12,22,0.9)",
+    pointerEvents: "none",
   },
   backButton: {
     width: 44,
@@ -124,6 +161,11 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.72)",
     fontSize: 13,
     marginTop: 6,
+  },
+  userId: {
+    color: "rgba(255,255,255,0.45)",
+    fontSize: 11,
+    marginTop: 4,
   },
   card: {
     backgroundColor: "rgba(255,255,255,0.14)",
