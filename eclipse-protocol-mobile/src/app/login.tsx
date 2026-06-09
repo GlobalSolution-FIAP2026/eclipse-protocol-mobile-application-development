@@ -60,8 +60,16 @@ export default function LoginScreen() {
 
       await saveAuthData(token, userId, email.trim().toLowerCase(), nome);
       router.replace("/dashboard");
-    } catch {
-      Alert.alert("Erro", "E-mail ou senha inválidos. Verifique suas credenciais.");
+    } catch (err: any) {
+      if (err?.code === "ECONNABORTED" || err?.message?.includes("timeout")) {
+        Alert.alert("Servidor aguarde", "O servidor está iniciando (Render free tier). Tente novamente em alguns segundos.");
+      } else if (err?.response?.status === 401 || err?.response?.status === 403) {
+        Alert.alert("Acesso negado", "E-mail ou senha inválidos.");
+      } else if (err?.response?.data?.message) {
+        Alert.alert("Erro", err.response.data.message);
+      } else {
+        Alert.alert("Erro de conexão", "Não foi possível conectar. Verifique sua internet e tente novamente.");
+      }
     } finally {
       setLoading(false);
     }

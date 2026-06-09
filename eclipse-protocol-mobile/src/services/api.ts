@@ -11,7 +11,7 @@ export const USER_NAME_KEY = "@eclipse:nome";
 export const api = axios.create({
   baseURL: "https://eclipse-protocol-java.onrender.com",
   headers: { "Content-Type": "application/json" },
-  timeout: 20000,
+  timeout: 60000,
 });
 
 // Request interceptor: inject Bearer token

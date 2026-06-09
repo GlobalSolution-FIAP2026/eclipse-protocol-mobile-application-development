@@ -9,6 +9,8 @@ export default function RootLayout() {
       const token = await getStoredToken();
       if (token) {
         router.replace("/dashboard");
+      } else {
+        router.replace("/login");
       }
     }
     checkAuth();
