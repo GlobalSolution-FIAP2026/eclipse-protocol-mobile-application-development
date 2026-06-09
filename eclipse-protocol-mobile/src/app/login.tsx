@@ -12,35 +12,17 @@ import {
   View,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { AntDesign } from '@expo/vector-icons';
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
-import { makeRedirectUri, useAuthRequest } from "expo-auth-session";
-import { login, loginWithGithub } from "../services/api";
-
-WebBrowser.maybeCompleteAuthSession();
-
-const GITHUB_CLIENT_ID = "Ov23liKnTer3C7Og2Fq4";
-
-const discovery = {
-  authorizationEndpoint: "https://github.com/login/oauth/authorize",
-};
+import * as Linking from "expo-linking";
+import { login } from "../services/api";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [loading, setLoading] = useState(false);
-
-  const redirectUri = makeRedirectUri({ scheme: "eclipseprotocolmobile" });
-
-  const [, , promptAsync] = useAuthRequest(
-    {
-      clientId: GITHUB_CLIENT_ID,
-      scopes: ["user:email"],
-      redirectUri,
-    },
-    discovery
-  );
 
   async function handleLogin() {
     if (!email || !senha) {
@@ -61,19 +43,32 @@ export default function LoginScreen() {
   }
 
   async function handleGithubLogin() {
-  const result = await WebBrowser.openAuthSessionAsync(
-    "https://eclipse-protocol-java.onrender.com/oauth2/authorization/github",
-    "eclipseprotocolmobile://"
-  );
+    setLoading(true);
+    try {
+      const redirectUri = Linking.createURL("/");
+      const authUrl =
+        "https://eclipse-protocol-java.onrender.com/oauth2/authorization/github" +
+        "?mobile_redirect=" +
+        encodeURIComponent(redirectUri);
 
-  if (result.type === "success" && result.url) {
-    const token = result.url.split("token=")[1];
-    if (token) {
-      await AsyncStorage.setItem("token", token);
-      router.push("/dashboard");
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
+
+      if (result.type === "success" && result.url) {
+        const parsed = Linking.parse(result.url);
+        const token = (parsed.queryParams?.token as string) ?? result.url.split("token=")[1];
+        if (token) {
+          await AsyncStorage.setItem("token", token);
+          router.push("/dashboard");
+        } else {
+          Alert.alert("Erro", "Token não recebido do GitHub.");
+        }
+      }
+    } catch (err: any) {
+      Alert.alert("Erro", err.message ?? "Não foi possível autenticar com GitHub.");
+    } finally {
+      setLoading(false);
     }
   }
-}
 
   return (
     <LinearGradient
@@ -156,7 +151,10 @@ export default function LoginScreen() {
               onPress={handleGithubLogin}
               disabled={loading}
             >
-              <Text style={styles.githubButtonText}>🐙  Entrar com GitHub</Text>
+            <View style={styles.githubButtonContent}>
+              <AntDesign name="github" size={22} color="#FFFFFF" />
+              <Text style={styles.githubButtonText}>Entrar com GitHub</Text>
+            </View>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -331,5 +329,12 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontWeight: "700",
     fontSize: 15,
+  },
+
+  githubButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
   },
 });
