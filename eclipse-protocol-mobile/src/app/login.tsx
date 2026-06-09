@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  BackHandler,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -11,18 +12,39 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { AntDesign } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { AntDesign } from '@expo/vector-icons';
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import * as Linking from "expo-linking";
-import { login } from "../services/api";
+import { login, saveAuthData, TOKEN_KEY } from "../services/api";
+import axios from "axios";
+
+async function getUsuariosComToken(token: string, email: string) {
+  try {
+    const response = await axios.get(
+      "https://eclipse-protocol-java.onrender.com/usuarios",
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    return response.data._embedded?.usuarioResponseList ?? [];
+  } catch {
+    return [];
+  }
+}
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Block hardware back button so users can't press back to dashboard after logout
+  useFocusEffect(
+    useCallback(() => {
+      const sub = BackHandler.addEventListener("hardwareBackPress", () => true);
+      return () => sub.remove();
+    }, [])
+  );
 
   async function handleLogin() {
     if (!email || !senha) {
@@ -30,13 +52,28 @@ export default function LoginScreen() {
       return;
     }
 
-    setLoading(true);
     try {
-      const data = await login(email, senha);
-      await AsyncStorage.setItem("token", data.token);
-      router.push("/dashboard");
+      setLoading(true);
+      const { token } = await login(email.trim().toLowerCase(), senha);
+      const usuarios = await getUsuariosComToken(token, email.trim().toLowerCase());
+      const usuario = usuarios.find(
+        (u: { email: string }) => u.email.toLowerCase() === email.trim().toLowerCase()
+      );
+      const userId = usuario?.id ?? 0;
+      const nome = usuario?.nome ?? "Usuário";
+
+      await saveAuthData(token, userId, email.trim().toLowerCase(), nome);
+      router.replace("/dashboard");
     } catch (err: any) {
-      Alert.alert("Erro", err.message ?? "Não foi possível realizar o login.");
+      if (err?.code === "ECONNABORTED" || err?.message?.includes("timeout")) {
+        Alert.alert("Servidor aguarde", "O servidor está iniciando (Render free tier). Tente novamente em alguns segundos.");
+      } else if (err?.response?.status === 401 || err?.response?.status === 403) {
+        Alert.alert("Acesso negado", "E-mail ou senha inválidos.");
+      } else if (err?.response?.data?.message) {
+        Alert.alert("Erro", err.response.data.message);
+      } else {
+        Alert.alert("Erro de conexão", "Não foi possível conectar. Verifique sua internet e tente novamente.");
+      }
     } finally {
       setLoading(false);
     }
@@ -57,14 +94,22 @@ export default function LoginScreen() {
         const parsed = Linking.parse(result.url);
         const token = (parsed.queryParams?.token as string) ?? result.url.split("token=")[1];
         if (token) {
-          await AsyncStorage.setItem("token", token);
-          router.push("/dashboard");
+          await AsyncStorage.setItem(TOKEN_KEY, token);
+          const usuarios = await getUsuariosComToken(token, "");
+          const usuario = usuarios[0];
+          await saveAuthData(
+            token,
+            usuario?.id ?? 0,
+            usuario?.email ?? "",
+            usuario?.nome ?? "Usuário"
+          );
+          router.replace("/dashboard");
         } else {
           Alert.alert("Erro", "Token não recebido do GitHub.");
         }
       }
     } catch (err: any) {
-      Alert.alert("Erro", err.message ?? "Não foi possível autenticar com GitHub.");
+      Alert.alert("Erro", err?.message ?? "Não foi possível autenticar com GitHub.");
     } finally {
       setLoading(false);
     }
@@ -133,7 +178,7 @@ export default function LoginScreen() {
                 style={styles.button}
               >
                 {loading ? (
-                  <ActivityIndicator color="#fff" />
+                  <ActivityIndicator color="#FFFFFF" />
                 ) : (
                   <Text style={styles.buttonText}>Entrar</Text>
                 )}
@@ -151,10 +196,10 @@ export default function LoginScreen() {
               onPress={handleGithubLogin}
               disabled={loading}
             >
-            <View style={styles.githubButtonContent}>
-              <AntDesign name="github" size={22} color="#FFFFFF" />
-              <Text style={styles.githubButtonText}>Entrar com GitHub</Text>
-            </View>
+              <View style={styles.githubButtonContent}>
+                <AntDesign name="github" size={22} color="#FFFFFF" />
+                <Text style={styles.githubButtonText}>Entrar com GitHub</Text>
+              </View>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -332,9 +377,9 @@ const styles = StyleSheet.create({
   },
 
   githubButtonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: 8,
   },
 });

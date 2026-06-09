@@ -1,13 +1,16 @@
+import { useCallback } from "react";
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import {
+  BackHandler,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { getStoredToken } from "../services/api";
 
 type IconName = React.ComponentProps<typeof MaterialCommunityIcons>["name"];
 
@@ -45,6 +48,18 @@ function ModuleCard({
 }
 
 export default function DashboardScreen() {
+  // Auth guard: if token was cleared (logout), redirect to login immediately
+  useFocusEffect(
+    useCallback(() => {
+      getStoredToken().then((token) => {
+        if (!token) router.replace("/login");
+      });
+      // Block hardware back button from leaving the dashboard
+      const sub = BackHandler.addEventListener("hardwareBackPress", () => true);
+      return () => sub.remove();
+    }, [])
+  );
+
   return (
     <LinearGradient colors={["#000814", "#001D2E", "#003D35"]} style={styles.page}>
       <ScrollView contentContainerStyle={styles.content}>
@@ -86,9 +101,9 @@ export default function DashboardScreen() {
           </View>
 
           <View style={styles.statusTextBox}>
-            <Text style={styles.statusTitle}>Sistema em modo demonstração</Text>
+            <Text style={styles.statusTitle}>Eclipse Protocol ativo</Text>
             <Text style={styles.statusDescription}>
-              Os dados reais serão carregados após a integração com a API Java.
+              Monitoramento agrícola inteligente em operação.
             </Text>
           </View>
         </View>

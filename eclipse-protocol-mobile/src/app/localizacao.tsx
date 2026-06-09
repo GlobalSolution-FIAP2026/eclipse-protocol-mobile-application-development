@@ -1,36 +1,39 @@
+import { useEffect, useState } from "react";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-
-const localizacoes = [
-  {
-    id: 1,
-    nome: "Fazenda Aurora",
-    cidade: "Campinas - SP",
-    latitude: "-22.9056",
-    longitude: "-47.0608",
-    area: "120 hectares",
-  },
-  {
-    id: 2,
-    nome: "Sítio Horizonte",
-    cidade: "Ribeirão Preto - SP",
-    latitude: "-21.1775",
-    longitude: "-47.8103",
-    area: "350 hectares",
-  },
-  {
-    id: 3,
-    nome: "Estância Eclipse",
-    cidade: "Londrina - PR",
-    latitude: "-23.3045",
-    longitude: "-51.1696",
-    area: "210 hectares",
-  },
-];
+import {
+  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { getLocalizacoes, type Localizacao } from "../services/api";
 
 export default function LocalizacaoScreen() {
+  const [localizacoes, setLocalizacoes] = useState<Localizacao[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchLocalizacoes();
+  }, []);
+
+  async function fetchLocalizacoes() {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await getLocalizacoes();
+      setLocalizacoes(data);
+    } catch {
+      setError("Erro ao carregar localizações.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <LinearGradient colors={["#000814", "#001D2E", "#003D35"]} style={styles.page}>
       <ScrollView contentContainerStyle={styles.content}>
@@ -48,6 +51,27 @@ export default function LocalizacaoScreen() {
           Visualize as propriedades monitoradas e suas coordenadas geográficas.
         </Text>
 
+        {loading && (
+          <View style={styles.center}>
+            <ActivityIndicator size="large" color="#58C7FF" />
+            <Text style={styles.loadingText}>Carregando localizações...</Text>
+          </View>
+        )}
+
+        {error && !loading && (
+          <TouchableOpacity style={styles.errorBox} onPress={fetchLocalizacoes}>
+            <MaterialCommunityIcons name="alert-circle-outline" size={24} color="#FF6B6B" />
+            <Text style={styles.errorText}>{error} Toque para tentar novamente.</Text>
+          </TouchableOpacity>
+        )}
+
+        {!loading && !error && localizacoes.length === 0 && (
+          <View style={styles.emptyBox}>
+            <MaterialCommunityIcons name="map-marker-off-outline" size={48} color="rgba(255,255,255,0.3)" />
+            <Text style={styles.emptyText}>Nenhuma localização cadastrada.</Text>
+          </View>
+        )}
+
         {localizacoes.map((item) => (
           <View key={item.id} style={styles.card}>
             <View style={styles.header}>
@@ -60,32 +84,23 @@ export default function LocalizacaoScreen() {
               </View>
 
               <View style={styles.info}>
-                <Text style={styles.nome}>{item.nome}</Text>
-                <Text style={styles.cidade}>{item.cidade}</Text>
+                <Text style={styles.nome}>{item.cidade} - {item.estado}</Text>
+                <Text style={styles.cidade}>{item.pais} · CEP {item.cep}</Text>
               </View>
             </View>
 
-            <View style={styles.mapFake}>
-              <MaterialCommunityIcons name="satellite-variant" size={38} color="#58C7FF" />
-              <Text style={styles.mapText}>Área monitorada por telemetria</Text>
-            </View>
-
-            <View style={styles.coords}>
-              <View style={styles.coordBox}>
-                <Text style={styles.coordLabel}>Latitude</Text>
-                <Text style={styles.coordValue}>{item.latitude}</Text>
+            {(item.latitude != null || item.longitude != null) && (
+              <View style={styles.coords}>
+                <View style={styles.coordBox}>
+                  <Text style={styles.coordLabel}>Latitude</Text>
+                  <Text style={styles.coordValue}>{item.latitude ?? "—"}</Text>
+                </View>
+                <View style={styles.coordBox}>
+                  <Text style={styles.coordLabel}>Longitude</Text>
+                  <Text style={styles.coordValue}>{item.longitude ?? "—"}</Text>
+                </View>
               </View>
-
-              <View style={styles.coordBox}>
-                <Text style={styles.coordLabel}>Longitude</Text>
-                <Text style={styles.coordValue}>{item.longitude}</Text>
-              </View>
-            </View>
-
-            <View style={styles.areaBox}>
-              <MaterialCommunityIcons name="map-outline" size={18} color="#9DEBFF" />
-              <Text style={styles.areaText}>{item.area}</Text>
-            </View>
+            )}
           </View>
         ))}
       </ScrollView>
@@ -155,6 +170,42 @@ const styles = StyleSheet.create({
     marginBottom: 22,
   },
 
+  center: {
+    alignItems: "center",
+    paddingVertical: 40,
+  },
+
+  loadingText: {
+    color: "rgba(255,255,255,0.7)",
+    marginTop: 12,
+  },
+
+  errorBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: "rgba(255,80,80,0.15)",
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: 16,
+  },
+
+  errorText: {
+    color: "#FF8A8A",
+    flex: 1,
+  },
+
+  emptyBox: {
+    alignItems: "center",
+    paddingVertical: 50,
+  },
+
+  emptyText: {
+    color: "rgba(255,255,255,0.45)",
+    marginTop: 12,
+    fontSize: 15,
+  },
+
   card: {
     backgroundColor: "rgba(255,255,255,0.14)",
     borderRadius: 26,
@@ -195,23 +246,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 
-  mapFake: {
-    height: 120,
-    borderRadius: 22,
-    backgroundColor: "rgba(0,0,0,0.25)",
-    borderWidth: 1,
-    borderColor: "rgba(88,199,255,0.25)",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 16,
-  },
-
-  mapText: {
-    color: "rgba(255,255,255,0.72)",
-    fontSize: 13,
-    marginTop: 8,
-  },
-
   coords: {
     flexDirection: "row",
     gap: 10,
@@ -238,16 +272,5 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     marginTop: 6,
   },
-
-  areaBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginTop: 14,
-  },
-
-  areaText: {
-    color: "rgba(255,255,255,0.78)",
-    fontSize: 13,
-  },
 });
+   

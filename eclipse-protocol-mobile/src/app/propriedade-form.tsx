@@ -1,8 +1,9 @@
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
@@ -13,22 +14,134 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import {
+  getStoredUserId,
+  createLocalizacao,
+  createPropriedade,
+  updatePropriedade,
+  getPropriedade,
+} from "../services/api";
 
 export default function PropriedadeFormScreen() {
+  const params = useLocalSearchParams<{
+    id?: string;
+    idLocalizacao?: string;
+    idUsuario?: string;
+  }>();
+  const isEdit = !!params.id;
+
   const [nome, setNome] = useState("");
-  const [cidade, setCidade] = useState("");
-  const [estado, setEstado] = useState("");
+  const [proprietario, setProprietario] = useState("");
   const [area, setArea] = useState("");
   const [tipoSolo, setTipoSolo] = useState("");
+  // Localização fields (used only for create)
+  const [cidade, setCidade] = useState("");
+  const [estado, setEstado] = useState("");
+  const [pais, setPais] = useState("Brasil");
+  const [cep, setCep] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [loadingData, setLoadingData] = useState(isEdit);
 
-  function handleSalvar() {
-    if (!nome || !cidade || !estado || !area) {
-      Alert.alert("Atenção", "Preencha os campos obrigatórios.");
+  useEffect(() => {
+    if (isEdit) {
+      loadPropriedade();
+    }
+  }, []);
+
+  async function loadPropriedade() {
+    try {
+      setLoadingData(true);
+      const prop = await getPropriedade(Number(params.id));
+      setNome(prop.nome);
+      setProprietario(prop.proprietario);
+      setArea(String(prop.areaTotal));
+      setTipoSolo(prop.tipoSolo ?? "");
+    } catch {
+      Alert.alert("Erro", "Não foi possível carregar os dados da propriedade.");
+    } finally {
+      setLoadingData(false);
+    }
+  }
+
+  async function handleSalvar() {
+    if (!nome || !proprietario || !area) {
+      Alert.alert("Atenção", "Preencha nome, proprietário e área.");
+      return;
+    }
+    if (!isEdit && (!cidade || !estado || !cep)) {
+      Alert.alert("Atenção", "Preencha cidade, estado e CEP para a localização.");
       return;
     }
 
-    Alert.alert("Sucesso", "Propriedade salva com sucesso!");
-    router.push("/propriedades");
+    const areaNum = parseFloat(area.replace(",", "."));
+    if (isNaN(areaNum) || areaNum <= 0) {
+      Alert.alert("Atenção", "Informe uma área válida em hectares.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      if (isEdit) {
+        const idLoc = Number(params.idLocalizacao);
+        const idUsu = Number(params.idUsuario);
+        if (!idLoc || !idUsu) {
+          Alert.alert("Erro", "Dados de localização inválidos. Volte e abra a propriedade novamente.");
+          return;
+        }
+        await updatePropriedade(Number(params.id), {
+          nome: nome.trim(),
+          proprietario: proprietario.trim(),
+          areaTotal: areaNum,
+          tipoSolo: tipoSolo.trim() || undefined,
+          idLocalizacao: idLoc,
+          idUsuario: idUsu,
+        });
+        Alert.alert("Sucesso", "Propriedade atualizada com sucesso!", [
+          { text: "OK", onPress: () => router.back() },
+        ]);
+      } else {
+        const userId = await getStoredUserId();
+        if (!userId) {
+          Alert.alert("Erro", "Usuário não autenticado.");
+          return;
+        }
+        const loc = await createLocalizacao({
+          cidade: cidade.trim(),
+          estado: estado.trim().toUpperCase().slice(0, 2),
+          pais: pais.trim(),
+          cep: cep.trim(),
+          latitude: 0,
+          longitude: 0,
+        });
+        await createPropriedade({
+          nome: nome.trim(),
+          proprietario: proprietario.trim(),
+          areaTotal: areaNum,
+          tipoSolo: tipoSolo.trim() || undefined,
+          idLocalizacao: loc.id,
+          idUsuario: userId,
+        });
+        Alert.alert("Sucesso", "Propriedade criada com sucesso!", [
+          { text: "OK", onPress: () => router.replace("/propriedades") },
+        ]);
+      }
+    } catch (err: any) {
+      const msg = err?.response?.data?.message ?? err?.response?.data?.error ?? err?.message ?? "Erro desconhecido";
+      Alert.alert("Erro " + (err?.response?.status ?? ""), String(msg));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (loadingData) {
+    return (
+      <LinearGradient colors={["#000814", "#001D2E", "#003D35"]} style={styles.page}>
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color="#58C7FF" />
+        </View>
+      </LinearGradient>
+    );
   }
 
   return (
@@ -46,9 +159,11 @@ export default function PropriedadeFormScreen() {
           </TouchableOpacity>
 
           <Text style={styles.overline}>CADASTRO TERRITORIAL</Text>
-          <Text style={styles.title}>Nova Propriedade</Text>
+          <Text style={styles.title}>{isEdit ? "Editar Propriedade" : "Nova Propriedade"}</Text>
           <Text style={styles.subtitle}>
-            Registre uma área rural para monitoramento inteligente.
+            {isEdit
+              ? "Atualize os dados da área rural."
+              : "Registre uma área rural para monitoramento inteligente."}
           </Text>
 
           <View style={styles.card}>
@@ -61,24 +176,13 @@ export default function PropriedadeFormScreen() {
               onChangeText={setNome}
             />
 
-            <Text style={styles.label}>Cidade *</Text>
+            <Text style={styles.label}>Proprietário *</Text>
             <TextInput
               style={styles.input}
-              placeholder="Ex: Campinas"
+              placeholder="Ex: João Silva"
               placeholderTextColor="rgba(255,255,255,0.55)"
-              value={cidade}
-              onChangeText={setCidade}
-            />
-
-            <Text style={styles.label}>Estado *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Ex: SP"
-              placeholderTextColor="rgba(255,255,255,0.55)"
-              value={estado}
-              onChangeText={setEstado}
-              maxLength={2}
-              autoCapitalize="characters"
+              value={proprietario}
+              onChangeText={setProprietario}
             />
 
             <Text style={styles.label}>Área em hectares *</Text>
@@ -100,13 +204,64 @@ export default function PropriedadeFormScreen() {
               onChangeText={setTipoSolo}
             />
 
-            <TouchableOpacity activeOpacity={0.85} onPress={handleSalvar}>
+            {!isEdit && (
+              <>
+                <Text style={styles.sectionLabel}>Localização</Text>
+
+                <Text style={styles.label}>Cidade *</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Ex: Campinas"
+                  placeholderTextColor="rgba(255,255,255,0.55)"
+                  value={cidade}
+                  onChangeText={setCidade}
+                />
+
+                <Text style={styles.label}>Estado * (2 letras)</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Ex: SP"
+                  placeholderTextColor="rgba(255,255,255,0.55)"
+                  value={estado}
+                  onChangeText={setEstado}
+                  maxLength={2}
+                  autoCapitalize="characters"
+                />
+
+                <Text style={styles.label}>País *</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Ex: Brasil"
+                  placeholderTextColor="rgba(255,255,255,0.55)"
+                  value={pais}
+                  onChangeText={setPais}
+                />
+
+                <Text style={styles.label}>CEP *</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Ex: 13000-000"
+                  placeholderTextColor="rgba(255,255,255,0.55)"
+                  value={cep}
+                  onChangeText={setCep}
+                  keyboardType="numeric"
+                />
+              </>
+            )}
+
+            <TouchableOpacity activeOpacity={0.85} onPress={handleSalvar} disabled={loading}>
               <LinearGradient
                 colors={["#19D991", "#008B68", "#005C46"]}
                 style={styles.saveButton}
               >
-                <MaterialCommunityIcons name="content-save-outline" size={21} color="#FFFFFF" />
-                <Text style={styles.saveText}>Salvar Propriedade</Text>
+                {loading ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <>
+                    <MaterialCommunityIcons name="content-save-outline" size={21} color="#FFFFFF" />
+                    <Text style={styles.saveText}>{isEdit ? "Atualizar" : "Salvar Propriedade"}</Text>
+                  </>
+                )}
               </LinearGradient>
             </TouchableOpacity>
           </View>
@@ -179,6 +334,19 @@ const styles = StyleSheet.create({
     padding: 20,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.24)",
+  },
+  center: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sectionLabel: {
+    color: "#58C7FF",
+    fontSize: 13,
+    fontWeight: "900",
+    letterSpacing: 1.5,
+    marginTop: 8,
+    marginBottom: 14,
   },
   label: {
     color: "#FFFFFF",

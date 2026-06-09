@@ -1,7 +1,9 @@
+import { useCallback, useEffect, useState } from "react";
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import {
+  ActivityIndicator,
   Alert,
   ScrollView,
   StyleSheet,
@@ -9,39 +11,51 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-
-const propriedades = [
-  {
-    id: 1,
-    nome: "Fazenda Aurora",
-    local: "Campinas - SP",
-    area: "120 hectares",
-    status: "Monitoramento ativo",
-  },
-  {
-    id: 2,
-    nome: "Sítio Horizonte",
-    local: "Ribeirão Preto - SP",
-    area: "350 hectares",
-    status: "Sensores conectados",
-  },
-  {
-    id: 3,
-    nome: "Estância Eclipse",
-    local: "Londrina - PR",
-    area: "210 hectares",
-    status: "Alerta climático moderado",
-  },
-];
+import { getPropriedades, deletePropriedade, type Propriedade } from "../services/api";
 
 export default function PropriedadesScreen() {
-  function handleDelete(nome: string) {
+  const [propriedades, setPropriedades] = useState<Propriedade[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchPropriedades();
+    }, [])
+  );
+
+  async function fetchPropriedades() {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await getPropriedades();
+      setPropriedades(data);
+    } catch {
+      setError("Erro ao carregar propriedades.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function handleDelete(id: number, nome: string) {
     Alert.alert(
       "Excluir propriedade",
-      `Deseja excluir ${nome}?`,
+      `Deseja excluir "${nome}"?`,
       [
         { text: "Cancelar", style: "cancel" },
-        { text: "Excluir", style: "destructive" },
+        {
+          text: "Excluir",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deletePropriedade(id);
+              setPropriedades((prev) => prev.filter((p) => p.id !== id));
+            } catch (err: any) {
+              const apiErr = err?.response?.data?.message ?? err?.response?.data?.error ?? err?.message ?? "Erro desconhecido";
+              Alert.alert("Erro " + (err?.response?.status ?? ""), String(apiErr));
+            }
+          },
+        },
       ]
     );
   }
@@ -71,6 +85,27 @@ export default function PropriedadesScreen() {
           <Text style={styles.newButtonText}>Nova Propriedade</Text>
         </TouchableOpacity>
 
+        {loading && (
+          <View style={styles.center}>
+            <ActivityIndicator size="large" color="#58C7FF" />
+            <Text style={styles.loadingText}>Carregando propriedades...</Text>
+          </View>
+        )}
+
+        {error && !loading && (
+          <TouchableOpacity style={styles.errorBox} onPress={fetchPropriedades}>
+            <MaterialCommunityIcons name="alert-circle-outline" size={24} color="#FF6B6B" />
+            <Text style={styles.errorText}>{error} Toque para tentar novamente.</Text>
+          </TouchableOpacity>
+        )}
+
+        {!loading && !error && propriedades.length === 0 && (
+          <View style={styles.emptyBox}>
+            <MaterialCommunityIcons name="home-city-outline" size={48} color="rgba(255,255,255,0.3)" />
+            <Text style={styles.emptyText}>Nenhuma propriedade cadastrada.</Text>
+          </View>
+        )}
+
         <View style={styles.list}>
           {propriedades.map((item) => (
             <View key={item.id} style={styles.card}>
@@ -85,30 +120,37 @@ export default function PropriedadesScreen() {
 
                 <View style={styles.cardInfo}>
                   <Text style={styles.cardTitle}>{item.nome}</Text>
-                  <Text style={styles.cardLocation}>{item.local}</Text>
+                  <Text style={styles.cardLocation}>Proprietário: {item.proprietario}</Text>
                 </View>
               </View>
 
               <View style={styles.details}>
                 <View style={styles.detailItem}>
                   <MaterialCommunityIcons name="map-outline" size={18} color="#9DEBFF" />
-                  <Text style={styles.detailText}>{item.area}</Text>
+                  <Text style={styles.detailText}>{item.areaTotal} ha</Text>
                 </View>
 
-                <View style={styles.detailItem}>
-                  <MaterialCommunityIcons
-                    name="satellite-uplink"
-                    size={18}
-                    color="#9DEBFF"
-                  />
-                  <Text style={styles.detailText}>{item.status}</Text>
-                </View>
+                {item.tipoSolo && (
+                  <View style={styles.detailItem}>
+                    <MaterialCommunityIcons name="layers-outline" size={18} color="#9DEBFF" />
+                    <Text style={styles.detailText}>{item.tipoSolo}</Text>
+                  </View>
+                )}
               </View>
 
               <View style={styles.actions}>
                 <TouchableOpacity
                   style={styles.editButton}
-                  onPress={() => router.push("/propriedade-form")}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/propriedade-form",
+                      params: {
+                        id: item.id,
+                        idLocalizacao: item.idLocalizacao,
+                        idUsuario: item.idUsuario,
+                      },
+                    })
+                  }
                 >
                   <MaterialCommunityIcons name="pencil-outline" size={18} color="#FFFFFF" />
                   <Text style={styles.actionText}>Editar</Text>
@@ -116,7 +158,7 @@ export default function PropriedadesScreen() {
 
                 <TouchableOpacity
                   style={styles.deleteButton}
-                  onPress={() => handleDelete(item.nome)}
+                  onPress={() => handleDelete(item.id, item.nome)}
                 >
                   <MaterialCommunityIcons name="trash-can-outline" size={18} color="#FFFFFF" />
                   <Text style={styles.actionText}>Excluir</Text>
@@ -148,6 +190,7 @@ const styles = StyleSheet.create({
     height: 300,
     borderRadius: 150,
     backgroundColor: "rgba(0,117,216,0.26)",
+    pointerEvents: "none",
   },
 
   eclipseDark: {
@@ -160,6 +203,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,12,22,0.9)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.12)",
+    pointerEvents: "none",
   },
 
   backButton: {
@@ -213,6 +257,42 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 15,
     fontWeight: "900",
+  },
+
+  center: {
+    alignItems: "center",
+    paddingVertical: 40,
+  },
+
+  loadingText: {
+    color: "rgba(255,255,255,0.7)",
+    marginTop: 12,
+  },
+
+  errorBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: "rgba(255,80,80,0.15)",
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: 16,
+  },
+
+  errorText: {
+    color: "#FF8A8A",
+    flex: 1,
+  },
+
+  emptyBox: {
+    alignItems: "center",
+    paddingVertical: 50,
+  },
+
+  emptyText: {
+    color: "rgba(255,255,255,0.45)",
+    marginTop: 12,
+    fontSize: 15,
   },
 
   list: {

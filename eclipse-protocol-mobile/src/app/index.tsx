@@ -14,7 +14,7 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import { register } from "../services/api";
+import { createUsuario } from "../services/api";
 
 export default function RegisterScreen() {
   const [nome, setNome] = useState("");
@@ -27,15 +27,23 @@ export default function RegisterScreen() {
       Alert.alert("Atenção", "Preencha todos os campos.");
       return;
     }
+    if (senha.length < 6) {
+      Alert.alert("Atenção", "A senha deve ter no mínimo 6 caracteres.");
+      return;
+    }
 
-    setLoading(true);
     try {
-      await register(nome, email, senha);
+      setLoading(true);
+      await createUsuario({ nome: nome.trim(), email: email.trim().toLowerCase(), senha });
       Alert.alert("Cadastro realizado", "Conta criada com sucesso!", [
-        { text: "OK", onPress: () => router.push("/login") },
+        { text: "Entrar", onPress: () => router.replace("/login") },
       ]);
     } catch (err: any) {
-      Alert.alert("Erro", err.message ?? "Não foi possível criar a conta.");
+      const msg =
+        err?.response?.data?.message ??
+        err?.response?.data ??
+        "Não foi possível criar a conta. Verifique os dados e tente novamente.";
+      Alert.alert("Erro", String(msg));
     } finally {
       setLoading(false);
     }
@@ -116,7 +124,7 @@ export default function RegisterScreen() {
                 style={styles.button}
               >
                 {loading ? (
-                  <ActivityIndicator color="#fff" />
+                  <ActivityIndicator color="#FFFFFF" />
                 ) : (
                   <Text style={styles.buttonText}>Criar conta</Text>
                 )}
