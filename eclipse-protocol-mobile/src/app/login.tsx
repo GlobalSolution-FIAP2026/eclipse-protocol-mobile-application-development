@@ -1,5 +1,6 @@
 import { useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
@@ -10,20 +11,32 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
+import { login } from "../services/api";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  function handleLogin() {
+  async function handleLogin() {
     if (!email || !senha) {
       Alert.alert("Atenção", "Preencha e-mail e senha.");
       return;
     }
 
-    router.push("/dashboard");
+    setLoading(true);
+    try {
+      const data = await login(email, senha);
+      await AsyncStorage.setItem("token", data.token);
+      router.push("/dashboard");
+    } catch (err: any) {
+      Alert.alert("Erro", err.message ?? "Não foi possível realizar o login.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -83,12 +96,16 @@ export default function LoginScreen() {
               secureTextEntry
             />
 
-            <TouchableOpacity onPress={handleLogin}>
+            <TouchableOpacity onPress={handleLogin} disabled={loading}>
               <LinearGradient
                 colors={["#19D991", "#008B68", "#005C46"]}
                 style={styles.button}
               >
-                <Text style={styles.buttonText}>Entrar</Text>
+                {loading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.buttonText}>Entrar</Text>
+                )}
               </LinearGradient>
             </TouchableOpacity>
 
