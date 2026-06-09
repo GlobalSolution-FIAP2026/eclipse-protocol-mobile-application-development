@@ -1,5 +1,15 @@
 const API_BASE_URL = "https://eclipse-protocol-java.onrender.com";
 
+async function handleResponse(response: Response, errorMessage: string) {
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.log("Erro da API:", errorText);
+    throw new Error(errorMessage);
+  }
+
+  return response.json();
+}
+
 export async function login(email: string, senha: string) {
   const response = await fetch(`${API_BASE_URL}/auth/login`, {
     method: "POST",
@@ -9,11 +19,7 @@ export async function login(email: string, senha: string) {
     body: JSON.stringify({ email, senha }),
   });
 
-  if (!response.ok) {
-    throw new Error("Erro ao realizar login");
-  }
-
-  return response.json();
+  return handleResponse(response, "Erro ao realizar login");
 }
 
 export async function getAlertas(token: string) {
@@ -23,9 +29,5 @@ export async function getAlertas(token: string) {
     },
   });
 
-  if (!response.ok) {
-    throw new Error("Erro ao buscar alertas");
-  }
-
-  return response.json();
+  return handleResponse(response, "Erro ao buscar alertas");
 }
