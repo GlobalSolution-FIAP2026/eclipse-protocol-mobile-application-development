@@ -7,7 +7,7 @@ O Eclipse Protocol é uma aplicação mobile desenvolvida com React Native e Exp
 A plataforma centraliza informações relacionadas às propriedades, plantações, sensores, leituras e alertas, permitindo que produtores rurais acompanhem dados importantes para a tomada de decisão e gestão agrícola.
 
 Este projeto foi desenvolvido como parte da Global Solution da FIAP, aplicando conceitos de desenvolvimento mobile, integração com APIs REST, autenticação JWT e gerenciamento de dados.
-
+https://youtube.com/shorts/p2n1Jo9S_ww?si=W4KZGuSNP_VPz6in
 ---
 
 # Tecnologias Utilizadas
