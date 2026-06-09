@@ -1,19 +1,13 @@
 import { useEffect } from "react";
 import { Stack, router } from "expo-router";
 import { StatusBar } from "react-native";
-import { getStoredToken } from "../services/api";
+import { clearAuthData } from "../services/api";
 
 export default function RootLayout() {
   useEffect(() => {
-    async function checkAuth() {
-      const token = await getStoredToken();
-      if (token) {
-        router.replace("/dashboard");
-      } else {
-        router.replace("/login");
-      }
-    }
-    checkAuth();
+    clearAuthData().then(() => {
+      router.replace("/login");
+    });
   }, []);
 
   return (
