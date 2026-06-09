@@ -12,6 +12,7 @@ import {
   View,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { cadastrarUsuario } from "../services/api";
 import { router } from "expo-router";
 
 export default function RegisterScreen() {

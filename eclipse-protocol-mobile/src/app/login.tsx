@@ -1,5 +1,7 @@
 import { useState } from "react";
+import { login } from "../services/api";
 import {
+  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
@@ -16,14 +18,28 @@ import { router } from "expo-router";
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  function handleLogin() {
+  async function handleLogin() {
     if (!email || !senha) {
       Alert.alert("Atenção", "Preencha e-mail e senha.");
       return;
     }
 
-    router.push("/dashboard");
+    try {
+      setLoading(true);
+
+      const data = await login(email, senha);
+
+      console.log("RETORNO DO LOGIN:", data);
+
+      Alert.alert("Sucesso", "Login realizado com sucesso!");
+      router.push("/dashboard");
+    } catch (error) {
+      Alert.alert("Erro", "E-mail ou senha inválidos ou API indisponível.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -45,7 +61,6 @@ export default function LoginScreen() {
 
           <View style={styles.header}>
             <Text style={styles.overline}>SECURE ACCESS</Text>
-
             <Text style={styles.title}>ECLIPSE</Text>
             <Text style={styles.protocol}>PROTOCOL</Text>
 
@@ -70,6 +85,8 @@ export default function LoginScreen() {
               value={email}
               onChangeText={setEmail}
               autoCapitalize="none"
+              keyboardType="email-address"
+              editable={!loading}
             />
 
             <Text style={styles.label}>Senha</Text>
@@ -81,20 +98,34 @@ export default function LoginScreen() {
               value={senha}
               onChangeText={setSenha}
               secureTextEntry
+              editable={!loading}
             />
 
-            <TouchableOpacity onPress={handleLogin}>
+            <TouchableOpacity
+              onPress={handleLogin}
+              disabled={loading}
+              activeOpacity={0.85}
+            >
               <LinearGradient
-                colors={["#19D991", "#008B68", "#005C46"]}
+                colors={
+                  loading
+                    ? ["#6B7280", "#4B5563"]
+                    : ["#19D991", "#008B68", "#005C46"]
+                }
                 style={styles.button}
               >
-                <Text style={styles.buttonText}>Entrar</Text>
+                {loading ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.buttonText}>Entrar</Text>
+                )}
               </LinearGradient>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.registerButton}
               onPress={() => router.push("/")}
+              disabled={loading}
             >
               <Text style={styles.registerText}>
                 Não possui conta? Criar cadastro
@@ -109,15 +140,12 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
   page: { flex: 1 },
-
   keyboard: { flex: 1 },
-
   content: {
     flexGrow: 1,
     paddingHorizontal: 24,
     paddingTop: 60,
   },
-
   eclipseGlow: {
     position: "absolute",
     top: -40,
@@ -127,7 +155,6 @@ const styles = StyleSheet.create({
     borderRadius: 130,
     backgroundColor: "rgba(0,117,216,0.28)",
   },
-
   eclipseDark: {
     position: "absolute",
     top: -10,
@@ -137,33 +164,28 @@ const styles = StyleSheet.create({
     borderRadius: 110,
     backgroundColor: "rgba(0,10,20,0.88)",
   },
-
   header: {
     alignItems: "center",
     marginBottom: 40,
   },
-
   overline: {
     color: "#58C7FF",
     fontSize: 12,
     fontWeight: "900",
     letterSpacing: 2,
   },
-
   title: {
     color: "#FFFFFF",
     fontSize: 38,
     fontWeight: "900",
     marginTop: 10,
   },
-
   protocol: {
     color: "#58C7FF",
     fontSize: 16,
     fontWeight: "900",
     letterSpacing: 8,
   },
-
   subtitle: {
     color: "rgba(255,255,255,0.8)",
     textAlign: "center",
@@ -171,7 +193,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 22,
   },
-
   card: {
     backgroundColor: "rgba(255,255,255,0.14)",
     borderRadius: 28,
@@ -179,27 +200,23 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.25)",
   },
-
   cardTitle: {
     color: "#FFFFFF",
     fontSize: 24,
     fontWeight: "900",
     textAlign: "center",
   },
-
   cardSubtitle: {
     color: "rgba(255,255,255,0.7)",
     textAlign: "center",
     marginTop: 8,
     marginBottom: 22,
   },
-
   label: {
     color: "#FFFFFF",
     fontWeight: "700",
     marginBottom: 8,
   },
-
   input: {
     backgroundColor: "rgba(255,255,255,0.14)",
     borderRadius: 16,
@@ -209,25 +226,24 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     marginBottom: 15,
   },
-
   button: {
     paddingVertical: 16,
     borderRadius: 18,
     marginTop: 10,
+    minHeight: 54,
+    alignItems: "center",
+    justifyContent: "center",
   },
-
   buttonText: {
     color: "#FFFFFF",
     fontWeight: "900",
     textAlign: "center",
     fontSize: 16,
   },
-
   registerButton: {
     marginTop: 18,
     alignItems: "center",
   },
-
   registerText: {
     color: "#DDF7FF",
     fontWeight: "700",
