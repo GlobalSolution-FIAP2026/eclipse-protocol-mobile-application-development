@@ -106,7 +106,7 @@ src/
 ## Clonar o Repositório
 
 ```bash
-git clone <url-do-repositorio>
+git clone https://github.com/GlobalSolution-FIAP2026/eclipse-protocol-mobile-application-development.git
 ```
 
 ## Acessar a Pasta do Projeto
