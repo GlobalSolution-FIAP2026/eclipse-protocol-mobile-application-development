@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import React from "react";
 
 export default function LeiturasScreen() {
   const leituras = [

@@ -16,6 +16,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { cadastrarUsuario } from "../services/api";
 import { router } from "expo-router";
 import { register } from "../services/api";
+import React from "react";
 
 export default function RegisterScreen() {
   const [nome, setNome] = useState("");

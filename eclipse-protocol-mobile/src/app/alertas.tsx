@@ -2,6 +2,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import React from "react";
 
 const alertas = [
   { id: 1, titulo: "Umidade crítica", local: "Milho Segunda Safra", nivel: "Alto", descricao: "Umidade do solo abaixo do recomendado." },

@@ -13,6 +13,7 @@ import {
   View,
 } from "react-native";
 import { deletarPropriedade, listarPropriedades } from "../services/api";
+import React from "react";
 
 type Propriedade = {
   id: number;

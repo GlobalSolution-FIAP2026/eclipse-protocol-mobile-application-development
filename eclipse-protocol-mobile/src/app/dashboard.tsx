@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import React from "react";
 
 type IconName = React.ComponentProps<typeof MaterialCommunityIcons>["name"];
 

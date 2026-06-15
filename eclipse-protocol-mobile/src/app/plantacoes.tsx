@@ -13,6 +13,7 @@ import {
   View,
 } from "react-native";
 import { deletarPlantacao, listarPlantacoes } from "../services/api";
+import React from "react";
 
 type Plantacao = {
   id: number;

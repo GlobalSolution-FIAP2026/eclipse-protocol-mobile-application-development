@@ -162,3 +162,47 @@ type PlantacaoPayload = {
   idPropriedade: number;
 };
 
+export async function listarPlantacoes(token: string) {
+  const response = await fetch(`${API_BASE_URL}/plantacoes`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return handleResponse(response, "Erro ao listar plantações");
+}
+
+export async function criarPlantacao(token: string, plantacao: PlantacaoPayload) {
+  const response = await fetch(`${API_BASE_URL}/plantacoes`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(plantacao),
+  });
+  return handleResponse(response, "Erro ao criar plantação");
+}
+
+export async function atualizarPlantacao(token: string, id: number, plantacao: PlantacaoPayload) {
+  const response = await fetch(`${API_BASE_URL}/plantacoes/${id}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(plantacao),
+  });
+  return handleResponse(response, "Erro ao atualizar plantação");
+}
+
+export async function deletarPlantacao(token: string, id: number) {
+  const response = await fetch(`${API_BASE_URL}/plantacoes/${id}`, {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const text = await response.text();
+  if (response.status === 204) return true;
+  throw new Error(text || "Erro ao deletar plantação");
+}

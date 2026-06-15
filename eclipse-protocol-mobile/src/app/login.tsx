@@ -15,6 +15,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { login } from "../services/api";
+import React from "react";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
